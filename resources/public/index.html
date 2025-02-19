@@ -56,16 +56,32 @@
     <div class="flex h-full">
         <div class="container w-2/5 min-h-screen p-6">
             <div class="flex justify-end items-center space-x-4">
-                <a href="#" onclick="save()" class="text-blue-600 hover:text-blue-400">Save</a>
-                <a href="#" onclick="stop()" class="text-blue-600 hover:text-blue-400">Stop</a>
+                <button onclick="save()" class="px-3 py-2 text-blue-600 rounded-full hover:bg-gray-50">
+                    Save
+                </button>
+                <button onclick="stop()" class="px-3 py-2 text-blue-600 rounded-full hover:bg-gray-50">
+                    Stop
+                </button>
             </div>
             <div id="modal-container"></div>
-            <div id="content" class="h-[80vh] overflow-y-auto bg-white"></div>
+            <div id="content" class="h-[70vh] overflow-y-auto bg-white"></div>
             <div id="input-area" class="p-4 flex items-center bg-white">
                 <div class="relative w-full h-24">
-                    <textarea id="message" placeholder="Your message here. Use Shift+Enter to send." class="flex-grow p-4 h-24 resize-none focus:outline-none"></textarea>
-                    <button id="send" class="absolute bottom-0 right-0 inline-flex items-center justify-center w-12 h-10 bg-blue-600 text-white font-semibold rounded-full hover:bg-blue-400 focus:outline-none">Send</button>                
+                    <textarea id="message" placeholder="How can Syndi help you with a Synapse data workflow? (Use Shift+Enter to send.)" class="flex-grow p-4 h-24 resize-none focus:outline-none"></textarea>
+                    <button id="send" class="absolute bottom-0 right-0 inline-flex items-center justify-center w-10 h-10 bg-gray-600 text-white font-semibold rounded-full hover:bg-blue-400 focus:outline-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                        </svg>
+                    </button>                
                 </div>            
+            </div>
+            <div id="shortcuts" class="p-4 flex gap-2 bg-white">
+                <button onclick="insertShortcut('visualize')" class="px-3 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">
+                    Understand and visualize data
+                </button>
+                <button onclick="insertShortcut('curate')" class="px-3 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">
+                    Curate external data asset
+                </button>
             </div>
         </div>
         <div class="container w-3/5 min-h-screen bg-gray-100">
@@ -81,6 +97,15 @@
         const sendButton = document.getElementById('send');
         const modalContainer = document.getElementById('modal-container');
         const ws = new WebSocket('ws://' + window.location.host + '/ws');
+
+        function insertShortcut(type) {
+            const shortcuts = {
+                visualize: "I want to quickly understand data in table syn123456, perhaps with the aid of exploratory visualizations.",
+                curate: "Help me curate an external resource at http://example.org into Synapse. I want to add the new entity to collection syn999999."
+            };
+            messageInput.value = shortcuts[type];
+            messageInput.focus();
+        }
 
         function loadOptionsModal() {
             fetch('/options-modal')
