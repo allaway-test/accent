@@ -29,7 +29,7 @@
   {:type "function"
    :function
    {:name "curate_dataset"
-    :description "Use to curate an existing dataset on Synapse; retrieve dataset meta given scope id and, optionally, a manifest id."
+    :description "Use to curate an existing dataset on Synapse; retrieve dataset meta given a scope id and, optionally, a manifest id."
     :parameters
     {:type "object"
      :properties
@@ -50,28 +50,28 @@
   {:type "function"
    :function
    {:name "curate_external_entity"
-    :description "Curate an external entity by adding its metadata to a collection in Synapse."
+    :description "Curate an external entity by adding its information to a collection in Synapse."
     :parameters
     {:type "object"
      :properties
      {:input_source
       {:type "string"
-       :description (str "Source characterizing or representing the external entity; "
-                         "it can be a user-provided text passage describing the entity, web page, filepath, or database ID (e.g. 'PMC134567').")}
+       :description (str "Input source characterizing or representing the external entity, "
+                         "such as user-provided text passage describing the entity, web page, filepath, or database ID (e.g. 'PMC134567').")}
      :input_representation
       {:type "string"
        :enum ["text" "link" "filepath" "PMCID"]
        :description "Labels the input source type to optimize curation."}
       :collection_id
       {:type "string"
-       :description "The collection container id on Synapse with pattern syn[0-9]+."}}}
+       :description "The collection id on Synapse, which should follow the id pattern of syn[0-9]+."}}}
     :required ["input_source" "input_representation" "collection_id"] }})
 
 (def stage_curated_spec
   {:type "function"
    :function
    {:name "stage_curated"
-    :description "Use to stage the curated and enhanced data product for user review and approval."
+    :description "Use to stage a curated and enhanced data product for user review and approval."
     :parameters
     {:type "object"
      :properties
@@ -82,28 +82,27 @@
                 :description "Metadata content as a JSON string adhering to the data product schema."}}}
     :required ["product_type" "metadata"]}})
 
-(def commit_curated_spec
+(def commit_spec
   {:type "function"
    :function
-   {:name "commit_curated"
-    :description "Use to put updated or new JSON metadata for curated entity into Synapse. An update should be accompanied by an existing id, while new metadata can be stored if given a container/collection id."
+   {:name "commit"
+    :description (str "Add new or updated data for an entity (data product) into the Synapse platform.")
     :parameters
     {:type "object"
      :properties
-     {:metadata
+     {:data
       {:type "string"
-       :description "JSON string of the curated product metadata."}
-      :storage_id
+       :description "JSON string representing the entity."}
+      :entity_id
       {:type "string"
-       :description "A Synapse id; for updates, the id is an existing entity, while for new entity metadata the id must be the container/collection id."}
-      :storage_scope
+       :description "Id of existing entity that the update applies to, or omit to create new entity. If omitted, use collection_id and product_name."}
+      :collection_id
       {:type "string"
-       :enum ["entity" "collection"]
-       :description "Indicates whether storage_id is the entity itself or a collection."}
+       :description "(Only for new entities where `entity_id` does not exist) Provide the id of a Synapse collection where changes can be created."}
       :product_name
       {:type "string"
-       :description "Only needed for new product metadata: provide the name or title for the product if it exists"}}}
-    :required ["metadata" "storage_id" "storage_scope"] }})
+       :description "(Only for new entities where `entity_id` does not exist) Suggested name or title for the entity"}}}
+    :required ["data"] }})
 
 (def get_table_context_spec
   {:type "function"
@@ -166,12 +165,13 @@
 (def tools
   [curate_dataset_spec
    curate_external_entity_spec
-   commit_curated_spec
+   commit_spec
    stage_curated_spec
    get_table_context_spec
    query_table_spec
    call_extraction_agent_spec
    call_viz_agent_spec
+   ;; call_knowledgebase_agent_spec ;; being refactored
    ])
 
 (def anthropic-tools (chat/convert-tools-for-anthropic tools))
@@ -219,20 +219,21 @@
   [{:keys [product_type metadata]}]
   (let [curated (json/parse-string metadata)]
     (swap! products assoc-in [(keyword product_type) :staging] curated)
-    {:result "Curated entity has been staged for review. Confirm with user if it should be stored using `commit_curated`."
+    {:result "Curated entity has been staged for review. Confirm with user if it should be stored using `commit`."
      :data curated ;; TODO: validation
      :dataspec "dataset"
      :type :success}))
 
-(defn wrap-commit-curated
-  [{:keys [metadata storage_id storage_scope product_name]}]
-  (let [ann-map (json/parse-string metadata)
-        name (if product_name product_name (str "Name"))
-        id (if (= storage_scope "entity") storage_id (create-folder @syn name storage_id))
+(defn wrap-commit
+  "Store the data as annotations on an existing entity, or create a new entity within a storage scope first if needed.
+  TODO: use create-file instead of create-folder"
+  [{:keys [data entity_id collection_id product_name]}]
+  (let [ann-map (json/parse-string data)
+        id (if entity_id entity_id (create-folder @syn product_name entity_id))
         response (set-annotations @syn id ann-map)]
-    (println "Metadata stored on/within" storage_scope storage_id)
+    (println "Metadata stored on/within" collection_id entity_id)
     (if (= 200 (:status response))
-      {:result "Stored successfully."
+      {:result "Committed successfully."
        :type :success}
       {:result (str "Failed to store, server returned status " (:status response))
        :type :error})))
@@ -291,7 +292,7 @@
       (let [result (case call-fn
                      "curate_dataset"         (wrap-curate-dataset args)
                      "stage_curated"          (wrap-stage-curated args)
-                     "commit_curated"         (wrap-commit-curated args)
+                     "commit"                 (wrap-commit args)
                      "get_table_context"      (wrap-get-table-context args)
                      "query_table"            (wrap-query-table args)
                      "call_extraction_agent"  (wrap-call-extraction-agent args)
@@ -321,13 +322,13 @@
 (def openai-init-prompt 
   [{:role "system" 
     :content (str "You are a data professional who helps users with data product curation, management, and analysis on the Synapse platform."
-                  "Your name is Syndi (pronounced like 'Cindy')."
-                  "To establish crucial context and provide best help, always ask users about a data coordinating center (DCC) they may be affiliated with " 
+                  "Your name is Syndi (pronounced like 'Cindy'). "
+                  ;; "To establish crucial context and provide best help, ask users about a data coordinating center (DCC) they may be affiliated with " 
                   ;; "ascertain the DCC name and asset view by checking with the knowledgebase agent,"
-                  "and proactively suggest tools and workflows. Common workflows include:\n"
-                  "- curating data products already in Synapse\n"
-                  "- curating (meta)data for data products outside of Synapse into Synapse collections\n"
-                  "- querying tables within Synapse to answer questions and visualize data\n")}])
+                  "Here are common workflows for users:\n"
+                  "- Curate dataset products already in Synapse to create improved versions\n"
+                  "- Curate unstructured assets outside of Synapse and bring them as structured data products into Synapse collections\n"
+                  "- Querying tables in Synapse to answer questions and visualize data\n")}])
 
 (def openai-messages (atom openai-init-prompt))
 
