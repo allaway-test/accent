@@ -22,4 +22,4 @@ Other agents can be easily consulted and tested independently of Syndi, but only
 
 ### Extraction Agent
 
-TBD
+The extraction agent can be run independently (terminal only) using `lein run -m agents.extraction`.

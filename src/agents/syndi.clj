@@ -176,15 +176,6 @@
 
 (def anthropic-tools (chat/convert-tools-for-anthropic tools))
 
-(defn get-first-message-content
-  "Parses an OpenAI completions response"
-  [response-map]
-  (when (= 200 (:status response-map))
-    (let [body (:body response-map)
-          parsed-body (json/parse-string body true)
-          first-choice (first (:choices parsed-body))]
-      (get-in first-choice [:message :content]))))
-
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; Tool call wrappers
 ;;;;;;;;;;;;;;;;;;;;;;
@@ -263,7 +254,7 @@
   [{:keys [input input_representation json_schema json_schema_representation]}] 
   (-> (call-extraction-agent input input_representation json_schema json_schema_representation) 
       (chat/request-openai-completions :string) 
-      (get-first-message-content)))
+      (chat/get-first-message-content)))
 
 (defn wrap-call-viz-agent
   [{:keys [request data]}]

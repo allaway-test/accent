@@ -36,6 +36,15 @@
   {:role "user"
    :content content})
 
+(defn get-first-message-content
+  "Parses an OpenAI completions response"
+  [response-map]
+  (when (= 200 (:status response-map))
+    (let [body (:body response-map)
+          parsed-body (json/parse-string body true)
+          first-choice (first (:choices parsed-body))]
+      (get-in first-choice [:message :content]))))
+
 (defn check-openai-finish-reason
   "Check OpenAI finish reason, adjusting for inconsistencies."
   [resp]
