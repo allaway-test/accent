@@ -46,27 +46,6 @@
                          " when not in the expected location the id will need to be provided by the user.")}}}
     :required ["scope_id" "asset_view"] }})
 
-(def curate_external_entity_spec
-  {:type "function"
-   :function
-   {:name "curate_external_entity"
-    :description "Curate an external entity by adding its information to a collection in Synapse."
-    :parameters
-    {:type "object"
-     :properties
-     {:input_source
-      {:type "string"
-       :description (str "Input source characterizing or representing the external entity, "
-                         "such as user-provided text passage describing the entity, web page, filepath, or database ID (e.g. 'PMC134567').")}
-     :input_representation
-      {:type "string"
-       :enum ["text" "link" "filepath" "PMCID"]
-       :description "Labels the input source type to optimize curation."}
-      :collection_id
-      {:type "string"
-       :description "The collection id on Synapse, which should follow the id pattern of syn[0-9]+."}}}
-    :required ["input_source" "input_representation" "collection_id"] }})
-
 (def stage_curated_spec
   {:type "function"
    :function
@@ -95,7 +74,7 @@
        :description "JSON string representing the entity."}
       :entity_id
       {:type "string"
-       :description "Id of existing entity that the update applies to, or omit to create new entity. If omitted, use collection_id and product_name."}
+       :description "Id of existing entity that the update applies to, or omit to create new entity. If omitted, use `collection_id` and `product_name`."}
       :collection_id
       {:type "string"
        :description "(Only for new entities where `entity_id` does not exist) Provide the id of a Synapse collection where changes can be created."}
@@ -164,7 +143,6 @@
 
 (def tools
   [curate_dataset_spec
-   curate_external_entity_spec
    commit_spec
    stage_curated_spec
    get_table_context_spec
@@ -175,15 +153,6 @@
    ])
 
 (def anthropic-tools (chat/convert-tools-for-anthropic tools))
-
-(defn get-first-message-content
-  "Parses an OpenAI completions response"
-  [response-map]
-  (when (= 200 (:status response-map))
-    (let [body (:body response-map)
-          parsed-body (json/parse-string body true)
-          first-choice (first (:choices parsed-body))]
-      (get-in first-choice [:message :content]))))
 
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; Tool call wrappers
@@ -226,7 +195,7 @@
 
 (defn wrap-commit
   "Store the data as annotations on an existing entity, or create a new entity within a storage scope first if needed.
-  TODO: use create-file instead of create-folder"
+  TODO: ability to use create-file instead of create-folder"
   [{:keys [data entity_id collection_id product_name]}]
   (let [ann-map (json/parse-string data)
         id (if entity_id entity_id (create-folder @syn product_name entity_id))
@@ -237,13 +206,6 @@
        :type :success}
       {:result (str "Failed to store, server returned status " (:status response))
        :type :error})))
-
-(defn wrap-curate-external-entity
-  "Workflow abstraction that composes extraction agent, creation of a folder, and storage of metadata."
-  [{:keys [input_source input_representation collection_id]}]
-  (let [json_schema (get-entity-schema @syn collection_id)
-        json_schema_representation "text"]
-  (call-extraction-agent input_source input_representation json_schema json_schema_representation)))
 
 (defn wrap-get-table-context
   "Combine retrieval of table schema and Wiki doc as table context"
@@ -263,7 +225,7 @@
   [{:keys [input input_representation json_schema json_schema_representation]}] 
   (-> (call-extraction-agent input input_representation json_schema json_schema_representation) 
       (chat/request-openai-completions :string) 
-      (get-first-message-content)))
+      (chat/get-first-message-content)))
 
 (defn wrap-call-viz-agent
   [{:keys [request data]}]
