@@ -1,6 +1,6 @@
 (ns agents.syndi
   (:gen-class)
-  (:require [accent.state :refer [u]]
+  (:require [accent.state :refer [setup u]]
             [accent.chat :as chat]
             [curate.synapse :refer [new-syn syn curate-dataset create-folder get-table-sample get-entity-wiki get-entity-schema query-table set-annotations]]
             [agents.extraction :refer [call-extraction-agent call_extraction_agent_spec]]
@@ -303,14 +303,14 @@
                    tool-time))
 
 (def AnthropicSyndiAgent 
-  (chat/->AnthropicProvider "claude-3-5-sonnet-latest" 
+  (chat/->AnthropicProvider "claude-3-7-sonnet-latest" 
                       anthropic-messages
                       anthropic-tools 
                       anthropic-tool-time))
 
-(def provider-agent
-  (if (= (@u :model-provider) "OpenAI")
-    OpenAISyndiAgent 
-    AnthropicSyndiAgent))
-
-(defn -main [] (chat/chat provider-agent))
+(defn -main [] 
+  (setup) 
+  (chat/chat 
+    (if (= (@u :model-provider) "OpenAI")
+      OpenAISyndiAgent 
+      AnthropicSyndiAgent)))
