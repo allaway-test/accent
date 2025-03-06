@@ -98,10 +98,10 @@
         (if init-model-provider 
           (do 
             (swap! u assoc :model-provider init-model-provider) 
-            (println "Model provider set to" init-model-provider))
+            (println "Model provider set to" (@u :model-provider) ))
           (let [chosen-provider (choose-model-provider)] 
             (swap! u assoc :model-provider chosen-provider) 
-            (println "Model provider set to" chosen-provider))))
+            (println "Model provider set to" (@u :model-provider) ))))
       has-oak 
       (println "You have an OpenAI API key and can use OpenAI services.")
       

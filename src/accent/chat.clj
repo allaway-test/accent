@@ -367,8 +367,8 @@
 
 (def anthropic-models
   "https://docs.anthropic.com/en/docs/about-claude/models"
-  {:default "claude-3-5-sonnet-latest"
-   :models {"claude-3-5-sonnet-latest" {:label "Claude 3.5 Sonnet"
+  {:default "claude-3-7-sonnet-latest"
+   :models {"claude-3-7-sonnet-latest" {:label "Claude 3.7 Sonnet"
                                         :context 200000}
             "claude-3-sonnet-20240229" {:label "Claude 3 Sonnet"
                                         :context 200000}}})
@@ -395,18 +395,12 @@
                    tool-time))
 
 (def AnthropicVanillaChat
-  (AnthropicProvider. "claude-3-5-sonnet-latest" 
+  (AnthropicProvider. "claude-3-7-sonnet-latest" 
                       anthropic-messages 
                       nil
                       anthropic-tool-time))
 
-(def provider-agent 
-  (if (= (@u :model-provider) "OpenAI") 
-    OpenAIVanillaChat 
-    AnthropicVanillaChat))
-
 (defn chat [provider-agent]
-  (setup) 
   (println "Chat initialized. Your message:") 
   (loop [prompt (read-line)] 
     (let [ai-reply (ask provider-agent prompt)] 
@@ -416,4 +410,8 @@
         (flush) 
         (recur (read-line))))))
 
-(defn -main [] (chat provider-agent))
+(defn -main [] 
+  (setup) 
+  (chat (if (= (@u :model-provider) "OpenAI") 
+    OpenAIVanillaChat 
+    AnthropicVanillaChat)))
