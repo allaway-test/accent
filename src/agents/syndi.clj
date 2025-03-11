@@ -2,7 +2,7 @@
   (:gen-class)
   (:require [accent.state :refer [setup u]]
             [accent.chat :as chat]
-            [curate.synapse :refer [new-syn syn curate-dataset create-folder get-table-sample get-entity-wiki get-entity-schema query-table set-annotations]]
+            [curate.synapse :refer [new-syn syn curate-dataset create-folder get-table-sample get-entity-wiki get-entity-schema get-user-name query-table set-annotations]]
             [agents.extraction :refer [call-extraction-agent call_extraction_agent_spec]]
             [cheshire.core :as json]
             [clojure.string :as str]
@@ -99,6 +99,17 @@
        :description (str "Id of the table to use, which should be specified by the user.")}}}
     :required ["table_id"]}})
 
+(def get_user_name_spec
+  {:type "function"
+   :function
+   {:name "get_user_name"
+    :description "Get a user name given a user id (results depend on how the user filled out this field, and in some cases may contain first name only or may be blank)."
+    :parameters
+    {:type "object"
+     :properties
+     {:userid {:type "number"
+               :description "Ids are integers, e.g. 273960."}}}}})
+
 (def query_table_spec
   {:type "function"
    :function
@@ -147,6 +158,7 @@
    stage_curated_spec
    get_table_context_spec
    query_table_spec
+   get_user_name_spec
    call_extraction_agent_spec
    call_viz_agent_spec
    ;; call_knowledgebase_agent_spec ;; being refactored
@@ -221,6 +233,11 @@
   {:result (str (query-table @syn table_id query))
    :type   :success})
 
+(defn wrap-get-user-name
+  [{:keys [userid]}]
+  {:result (str (get-user-name @syn (str userid)))
+   :type   :success})
+
 (defn wrap-call-extraction-agent
   [{:keys [input input_representation json_schema json_schema_representation]}] 
   (-> (call-extraction-agent input input_representation json_schema json_schema_representation) 
@@ -257,6 +274,7 @@
                      "commit"                 (wrap-commit args)
                      "get_table_context"      (wrap-get-table-context args)
                      "query_table"            (wrap-query-table args)
+                     "get_user_name"          (wrap-get-user-name args)
                      "call_extraction_agent"  (wrap-call-extraction-agent args)
                      "call_viz_agent"         (wrap-call-viz-agent args)
                      (throw (ex-info "Invalid tool function" {:tool call-fn})))]
@@ -283,7 +301,7 @@
 
 (def openai-init-prompt 
   [{:role "system" 
-    :content (str "You are a data professional who helps users with data product curation, management, and analysis on the Synapse platform."
+    :content (str "You are a data professional who helps users with data product curation, management, lookups, and analysis on the Synapse platform."
                   "Your name is Syndi (pronounced like 'Cindy'). "
                   ;; "To establish crucial context and provide best help, ask users about a data coordinating center (DCC) they may be affiliated with " 
                   ;; "ascertain the DCC name and asset view by checking with the knowledgebase agent,"
