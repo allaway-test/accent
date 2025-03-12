@@ -99,6 +99,19 @@
        :description (str "Id of the table to use, which should be specified by the user.")}}}
     :required ["table_id"]}})
 
+(def get_entity_wiki_spec
+  {:type "function"
+   :function
+   {:name "get_entity_wiki"
+    :description "Get the Wiki page, if it exists, for a Synapse entity."
+    :parameters
+    {:type "object"
+     :properties
+     {:id
+      {:type "string"
+       :description "Synapse entity id, e.g. 'syn12345678'"}}}
+    :required ["id"] }})
+
 (def get_user_name_spec
   {:type "function"
    :function
@@ -158,6 +171,7 @@
    stage_curated_spec
    get_table_context_spec
    query_table_spec
+   get_entity_wiki_spec
    get_user_name_spec
    call_extraction_agent_spec
    call_viz_agent_spec
@@ -233,6 +247,11 @@
   {:result (str (query-table @syn table_id query))
    :type   :success})
 
+(defn wrap-get-entity-wiki
+  [{:keys [id]}]
+  {:result (get-entity-wiki @syn id)
+   :type   :success})
+
 (defn wrap-get-user-name
   [{:keys [userid]}]
   {:result (str (get-user-name @syn (str userid)))
@@ -274,6 +293,7 @@
                      "commit"                 (wrap-commit args)
                      "get_table_context"      (wrap-get-table-context args)
                      "query_table"            (wrap-query-table args)
+                     "get_entity_wiki"        (wrap-get-entity-wiki args)
                      "get_user_name"          (wrap-get-user-name args)
                      "call_extraction_agent"  (wrap-call-extraction-agent args)
                      "call_viz_agent"         (wrap-call-viz-agent args)
