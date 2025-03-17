@@ -11,14 +11,15 @@
 (defprotocol AIProviderOps
   (parse-response [this resp] [this resp clients] "Handle AI provider response")
   (prompt-ai [this content] [this content tool-choice] "Send prompt to AI provider")
-  (add-tool-result [this tool-calls] [this tool-calls clients] "Add tool result to response")
-  (get-last-text [this] "Get last text in message history"))
+  (add-tool-result [this tool-calls] [this tool-calls clients] "Add tool result to response"))
 
 (defprotocol AIProviderStreamOps
-  (stream-response [this message tool-choice clients] "Handle streaming AI provider response"))
+  (stream-response [this message tool-choice clients] "Handle streaming AI provider response with client(s)"))
 
-(defprotocol SaveOps
-  (save-messages [this] "Save messages to file"))
+(defprotocol MessageOps
+  (get-last-text [this] "Get last text in message history")
+  (save-messages [this] [this file] "Save messages to file")
+  (reset-messages [this] "Reset messages to initial message state"))
 
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; Utils
@@ -93,9 +94,9 @@
    "certain obstacles oppose prompt service"
    "onset of prompting stress"])
 
-(defn save-messages!
-  [messages & [filename]]
-  (let [json-str (json/generate-string @messages)
+(defn save-state!
+  [state & [filename]]
+  (let [json-str (json/generate-string state)
         default-name (str "accent-" (System/currentTimeMillis) ".json")
         fname (or filename default-name)]
     (with-open [wr (io/writer fname)]
@@ -152,7 +153,7 @@
 ;; OpenAIProvider Definition
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(deftype OpenAIProvider [model messages tools tool-time]
+(deftype OpenAIProvider [model messages tools tool-time meta]
   AIProviderOps
   (parse-response [this resp] (parse-response this resp nil))
   (parse-response [this resp clients]
@@ -166,6 +167,7 @@
             tool-calls    (msg :tool_calls)
             finish-reason (check-openai-finish-reason resp)]
         (swap! messages conj msg)
+        (mu/log ::usage :data (get resp :usage))
         (case finish-reason
           "length"        (as-last-message messages (peek @messages) resp)
           "tool_calls"    (add-tool-result this tool-calls clients)
@@ -183,7 +185,7 @@
                         :messages @messages
                         :stream (@u :stream)}
                        tools (merge {:tools tools :parallel_tool_calls false})
-                        tool-choice (assoc :tool_choice {:type "function" :function {:name tool-choice}}))
+                       tool-choice (assoc :tool_choice {:type "function" :function {:name tool-choice}}))
                       (request-openai-completions))]
         (if (:error response)
           {:error true
@@ -207,7 +209,6 @@
 
           (stream-response this msg forced-tool clients))
         (parse-response this (prompt-ai this msg forced-tool)))))
-  (get-last-text [this] "TODO")
 
   AIProviderStreamOps
   (stream-response [this message tool-choice clients]
@@ -241,14 +242,17 @@
                                                      :content content}))))
                     (swap! collected-response update :content str content))))))))))
   
-  SaveOps
-  (save-messages [this] (save-messages! messages)))
+  MessageOps
+  (get-last-text [this] "TODO")
+  (save-messages [this] (save-state! @messages (str "accent-openai-messages-" (System/currentTimeMillis) ".json")))
+  (save-messages [this file] (save-state! @messages file))
+  (reset-messages [this] (reset! messages [{:role "system" :content (@meta :system)}])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Anthropic Provider Def
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(deftype AnthropicProvider [model messages tools tool-time]
+(deftype AnthropicProvider [model messages tools tool-time meta]
   
   AIProviderOps
   (parse-response [this resp] (parse-response this resp nil))
@@ -264,6 +268,7 @@
             stop-reason (:stop_reason resp)
             tool-use (->>(filter #(= "tool_use" (:type %)) content)(first))]
         (swap! messages conj msg)
+        (mu/log ::usage :data (get resp :usage))
         (case stop-reason
           "max_tokens"    (as-last-message messages (get-last-text this) resp)
           "tool_use"      (add-tool-result this tool-use)
@@ -277,12 +282,12 @@
                        (cond->
                         {:model       model 
                          :max_tokens  1024
-                         ;;:system      nil ;;  (system-prompt) 
                          :messages    @messages
                          :temperature 0
                          :stream      false} 
+                        (@meta :system) (assoc :system (@meta :system))
                         tools (assoc :tools tools)
-                         tool-choice (assoc :tool_choice {:type "tool" :name tool-choice}))
+                        tool-choice (assoc :tool_choice {:type "tool" :name tool-choice}))
                        (request-anthropic-messages))]
         (if (:error response)
           {:error   true
@@ -296,9 +301,14 @@
                                             :tool_use_id (tool-use :id)
                                             :content     (result :result)}]}]
                      (parse-response this (prompt-ai this msg))))
+  
+  MessageOps
   (get-last-text [this]
                  (let [msg (peek @messages)]
-                   (assoc msg :content (get-in msg [:content 0 :text])))))
+                   (assoc msg :content (get-in msg [:content 0 :text]))))
+  (save-messages [this] (save-state! @messages (str "accent-anthropic-messages-" (System/currentTimeMillis) ".json")))
+  (save-messages [this file] (save-state! @messages file))
+  (reset-messages [this] (reset! messages [])))
 
 
 ;;;;;;;;;;;;;;;;;;;;;
@@ -325,13 +335,16 @@
 
 (defn convert-tools-for-anthropic
   "Convert OpenAI tools schema to Anthropic tools schema"
-  [openai-tools]
-  (mapv (fn [tool]
+  [openai-tools & [cache-breakpoint?]]
+  (let [tools-count (count openai-tools)]
+    (mapv (fn [tool idx]
+        (cond->
           {:name (get-in tool [:function :name])
            :description (get-in tool [:function :description])
            :input_schema (-> tool
-                             (get-in [:function :parameters]))})
-        openai-tools))
+                             (get-in [:function :parameters]))}
+          (and cache-breakpoint? (= idx (dec tools-count))) (assoc :cache_control {"type" "ephemeral"})))
+        openai-tools (range tools-count))))
 
 (def search_tool_spec
   "Example of a tool spec for a search tool; not used."
@@ -388,17 +401,21 @@
 
 (def anthropic-messages (atom [])) ;; system prompt is not in messages
 
+(def meta (atom {}))
+
 (def OpenAIVanillaChat 
   (OpenAIProvider. "gpt-4o" 
                    openai-messages
                    nil 
-                   tool-time))
+                   tool-time
+                   meta))
 
 (def AnthropicVanillaChat
   (AnthropicProvider. "claude-3-7-sonnet-latest" 
                       anthropic-messages 
                       nil
-                      anthropic-tool-time))
+                      anthropic-tool-time
+                      meta))
 
 (defn chat [provider-agent]
   (println "Chat initialized. Your message:") 
