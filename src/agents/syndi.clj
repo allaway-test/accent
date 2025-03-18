@@ -338,6 +338,13 @@
                    tool-time
                    meta))
 
+(def OpenAISyndiReasoningAgent 
+  (chat/->OpenAIProvider "o3-mini" 
+                   openai-messages
+                   tools 
+                   tool-time
+                   meta))
+
 (def AnthropicSyndiAgent 
   (chat/->AnthropicProvider "claude-3-7-sonnet-latest" 
                       anthropic-messages
