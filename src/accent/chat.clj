@@ -21,6 +21,10 @@
   (save-messages [this] [this file] "Save messages to file")
   (reset-messages [this] "Reset messages to initial message state"))
 
+(defprotocol AgentOps
+  (get-model [this] "Get current model")
+  (switch-model [this model] "Switch to given model"))
+
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; Utils
 ;;;;;;;;;;;;;;;;;;;;;;
@@ -155,7 +159,11 @@
 ;; OpenAIProvider Definition
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(deftype OpenAIProvider [model messages tools tool-time meta]
+(deftype OpenAIProvider [^:volatile-mutable model 
+                         messages 
+                         tools 
+                         tool-time 
+                         metaphora]
   AIProviderOps
   (parse-response [this resp] (parse-response this resp nil))
   (parse-response [this resp clients]
@@ -249,13 +257,21 @@
   (get-last-text [this] "TODO")
   (save-messages [this] (save-state! @messages (str "accent-openai-messages-" (System/currentTimeMillis) ".json")))
   (save-messages [this file] (save-state! @messages file))
-  (reset-messages [this] (reset! messages [{:role "system" :content (@meta :system)}])))
+  (reset-messages [this] (reset! messages [{:role "system" :content (@metaphora :system)}]))
+  
+  AgentOps
+  (get-model [this] model)
+  (switch-model [this new-model] (set! model new-model)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Anthropic Provider Def
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(deftype AnthropicProvider [model messages tools tool-time meta]
+(deftype AnthropicProvider [^:volatile-mutable model 
+                            messages 
+                            tools 
+                            tool-time 
+                            metaphora]
   
   AIProviderOps
   (parse-response [this resp] (parse-response this resp nil))
@@ -288,7 +304,7 @@
                          :messages    @messages
                          :temperature 0
                          :stream      false} 
-                        (@meta :system) (assoc :system (@meta :system))
+                        (@metaphora :system) (assoc :system (@metaphora :system))
                         tools (assoc :tools tools)
                         tool-choice (assoc :tool_choice {:type "tool" :name tool-choice}))
                        (request-anthropic-messages))]
@@ -314,7 +330,11 @@
                    (assoc msg :content (get-in msg [:content 0 :text]))))
   (save-messages [this] (save-state! @messages (str "accent-anthropic-messages-" (System/currentTimeMillis) ".json")))
   (save-messages [this file] (save-state! @messages file))
-  (reset-messages [this] (reset! messages [])))
+  (reset-messages [this] (reset! messages []))
+  
+  AgentOps
+  (get-model [this] model)
+  (switch-model [this new-model] (set! model new-model)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;
@@ -407,21 +427,21 @@
 
 (def anthropic-messages (atom [])) ;; system prompt is not in messages
 
-(def meta (atom {}))
+(def metaphora (atom {}))
 
 (def OpenAIVanillaChat 
   (OpenAIProvider. "gpt-4o" 
                    openai-messages
                    nil 
                    tool-time
-                   meta))
+                   metaphora))
 
 (def AnthropicVanillaChat
   (AnthropicProvider. "claude-3-7-sonnet-latest" 
                       anthropic-messages 
                       nil
                       anthropic-tool-time
-                      meta))
+                      metaphora))
 
 (defn chat [provider-agent]
   (println "Chat initialized. Your message:") 
