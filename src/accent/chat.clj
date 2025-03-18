@@ -179,12 +179,13 @@
                     (as-user-message content)
                     content)]
       (swap! messages conj message)
-      (let [response (->
+      (let [tools (if (= "o3-mini") {:tools tools} {:tools tools :parallel_tool_calls false})
+            response (->
                       (cond->
                        {:model model
                         :messages @messages
                         :stream (@u :stream)}
-                       tools (merge {:tools tools :parallel_tool_calls false})
+                       tools (merge tools)
                        tool-choice (assoc :tool_choice {:type "function" :function {:name tool-choice}}))
                       (request-openai-completions))]
         (if (:error response)
