@@ -6,6 +6,7 @@ config.edn
 graalvm-ce-java17-22.3.1
 
 # Logs
+logs
 reports
 chats
 
@@ -16,3 +17,5 @@ target
 .clj-kondo/
 .lsp/
 .nrepl-port
+.cpcache/
+.lein*
