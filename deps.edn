@@ -11,9 +11,9 @@
         com.brunobonacci/mulog {:mvn/version "0.9.0"}
         hiccup/hiccup {:mvn/version "2.0.0-RC3"}
         org.apache.tika/tika-core {:mvn/version "2.8.0"}
-        org.apache.tika/tika-parsers-standard-package {:mvn/version "2.8.0"}}
+        org.apache.tika/tika-parsers-standard-package {:mvn/version "2.8.0"}
         org.sagebionetworks/synapseJavaClient {:mvn/version "500.0"
-                                               :repos ["sagebionetworks-artifactory"]}
+                                               :repos ["sagebionetworks-artifactory"]}}
  
  :mvn/repos {"sagebionetworks-artifactory" {:url "https://sagebionetworks.jfrog.io/artifactory/libs-releases-local/"}}
 
