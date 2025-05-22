@@ -2,10 +2,18 @@
   (:gen-class)
   (:require [accent.state :refer [setup u]]
             [accent.chat :as chat]
+            [curate.util :as cu]
             [database.arachne :as arachne]
             [cheshire.core :as json]
             [clojure.string :as str]
             [com.brunobonacci.mulog :as mu]))
+
+;;;;;;;;;;;;;;;;;;;;;
+;; INTERNAL
+;;;;;;;;;;;;;;;;;;;;;
+
+(mu/start-publisher! {:type :simple-file
+                      :filename "/tmp/mulog/events.edn"})
 
 ;;;;;;;;;;;;;;;;;;;;;
 ;; Tool defs
@@ -16,8 +24,7 @@
    :function
    {:name "find_matching_attribute"
     :description (str "Given a source attribute, find a matching attribute in a target attribute set. "
-                      "This will return the matching/pairing attribute if it exists. "
-                      ;;"If matching attribute found, information like attribute description, etc. is also returned."
+                      "This will return the matching attribute if it exists."
                       )
     :parameters
     {:type "object"
@@ -46,7 +53,7 @@
   {:type "function"
    :function
    {:name "get_template_meta"
-    :description (str "Get information about an entity template such as its attributes (columns) and their order.")
+    :description (str "Get information about an entity template such as its attributes (columns) and their order. Only available for GDC templates.")
     :parameters
     {:type "object"
      :properties
@@ -69,43 +76,55 @@
        :description "The data standard URI, of the format '<http://syn.org/{data_standard}>', i.e. '<http://syn.org/gdc>'. Currently, only GDC standard is supported."}}}
     :required ["standard_uri"]}})
 
-(def read_csv_spec
+(def read_file_spec
   {:type "function"
    :function
-   {:name "read_csv"
-    :description "Read data from a CSV file accessible as a local file or via a URL. Excel files are *not* supported."
+   {:name "read_file"
+    :description "Read text content accessible as a local file or via a URL. Files like Excel are *not* supported. Files larger than 50kb will not be read."
     :parameters
     {:type "object"
      :properties
      {:file {:type "string" 
-             :description "Local file path such as 'input/sample.csv' or URL such as 'https://raw.githubusercontent.com/codeforamerica/ohana-api/refs/heads/master/data/sample-csv/organizations.csv'"}
+             :description "Local file path such as 'input/sample.csv' and 'examples/code.js', or URL such as 'https://raw.githubusercontent.com/.../data/sample-csv/organizations.csv'"}
       }}
     :required ["file"]}})
 
-(def write_csv_spec
+(def summarize_file_spec
   {:type "function"
    :function
-   {:name "write_csv"
-    :description "Write data to csv file."
+   {:name "summarize_file"
+    :description "Get summary of the data within a csv file, such as columns present, unique values and value ranges. This can handle larger files."
+    :parameters
+    {:type "object"
+     :properties
+     {:file {:type "string"
+             :description "Local file path such as 'input/sample.csv'."}}}
+    :required ["file"]}})
+
+(def submit_data_spec
+  {:type "function"
+   :function
+   {:name "submit_data"
+    :description "CSV data or JSON defining the mapping/transform to be implemented (if so, conforms to a JSON schema)."
     :parameters
     {:type "object"
      :properties
      {:data
       {:type "string"
-       :description "CSV data conforming to a standard template."}
+       :description "Data to be written to the file."}
       :filename
       {:type "string"
-       :description "Name for the csv file to be written, including the .csv extension."}}}
+       :description "File name, including the file extension."}}}
     :required ["data" "filename"] }})
-
 
 (def tools
   [find_matching_attribute_spec
    get_attribute_meta_spec
    get_template_meta_spec
    list_standard_templates_spec
-   read_csv_spec
-   write_csv_spec
+   read_file_spec
+   summarize_file_spec
+   submit_data_spec
    ])
 
 (def anthropic-tools (chat/convert-tools-for-anthropic tools true))
@@ -117,7 +136,8 @@
 (defn wrap-find-matching-attribute
   [{:keys [attribute_uri]}]
   (let [result (arachne/get-same-property attribute_uri)]
-    (if (empty? result)
+    (mu/log ::find-matching-attribute :param attribute_uri) 
+    (if (or (nil? result) (empty? result))
       {:result "No known matches were found."
        :type :success}
       {:result (str result)
@@ -126,31 +146,55 @@
 (defn wrap-get-attribute-meta 
   [{:keys [attribute_uri]}]
   (let [result (arachne/describe-uri attribute_uri)]
-    {:result (str result)
-     :type :success}))
+    (mu/log ::get-attribute-meta  :param attribute_uri)
+    (if (or (nil? result) (empty? result))
+      {:result "No result."
+       :type :success}
+      {:result (str result) 
+       :type :success})))
 
 (defn wrap-get-template-meta
   [{:keys [template_uri]}]
   (let [result (arachne/describe-template-columns template_uri)]
-    {:result (str result)
-     :type :success}))
+    (if (or (nil? result) (empty? result))
+        {:result "No result."
+         :type :success}
+        {:result (str result)
+         :type :success})))
 
 (defn wrap-list-standard-templates
-  [{:keys [standard_uri]}]
+  [{:keys [standard_uri]}] 
   (let [result (arachne/list-templates standard_uri)]
-    {:result (str result)
-     :type :success}))
+    (mu/log ::list-standard-templates  :param standard_uri)
+    (if (or (nil? result) (empty? result))
+        {:result "No result."
+         :type :success}
+        {:result (str result)
+         :type :success})))
 
-(defn wrap-read-csv 
+(defn wrap-read-file 
   [{:keys [file]}]
-  (let [text (slurp file)]
-    {:result text 
+  (let [file-obj (java.io.File. file)
+         size-in-kb (/ (.length file-obj) 1024.0)]
+    (mu/log ::read-file  :filename file)
+     (if (< size-in-kb 10)
+       {:result (slurp file)
+        :type :success}
+       {:result "File is too large."
+        :type :error})))
+
+(defn wrap-submit-data 
+  [{:keys [data filename]}]
+  (let [file (spit filename data)]
+    (mu/log ::submit-data :filename filename :message data)
+    {:result "File stored."
      :type :success}))
 
-(defn wrap-write-csv 
-  [{:keys [data filename]}]
-  (let [result (spit filename data)]
-    {:result "File written successfully."
+(defn wrap-summarize-file
+  [{:keys [file]}] 
+  (let [result (cu/summarize-manifest file)]
+    (mu/log ::summarize-file  :filename file)
+    {:result (str result)
      :type :success}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -158,12 +202,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn with-next-tool-call
-  "Applies logic for chaining certain tool calls. Input should be result from `tool-time`
-  Currently, stage_curated should be forced after curate_dataset only under certain return types."
+  "Applies logic for chaining certain tool calls. NOTE: Stub, not used."
   [tool-result]
-  (if (and (= "curate_dataset" (tool-result :tool)) (= :success (tool-result :type)))
-    (assoc tool-result :next-tool-call "stage_curated")
-    tool-result))
+  tool-result)
 
 (defn tool-time 
   [tool-call]
@@ -175,8 +216,9 @@
                      "get_attribute_meta"              (wrap-get-attribute-meta args)
                      "get_template_meta"               (wrap-get-template-meta args)
                      "list_standard_templates"         (wrap-list-standard-templates args)
-                     "read_csv"                        (wrap-read-csv args)
-                     "write_csv"                       (wrap-write-csv args)
+                     "read_file"                       (wrap-read-file args)
+                     "summarize_file"                  (wrap-summarize-file args)
+                     "submit_data"                (wrap-submit-data args)
                      (throw (ex-info "Invalid tool function" {:tool call-fn})))]
         (->
          (if (map? result) (merge  {:tool call-fn} result) {:tool call-fn :result result})
@@ -203,14 +245,14 @@
   (str 
   "You are a data management agent who specializes in reviewing diverse data templates based on the CCDI standard and translating them to a desired common standard called **GDC**. "
   "Your most common workflow consists of obtaining from the user the paths to one or more CSV templates of entity data that they need to transform to a target set of templates in the GDC standard. "
-  "For each CSV file with records of some entity type, you can use the 'read_csv' tool to extract and see the entity data records. " 
+  "For each CSV file with records of some entity type, you can use the 'read_file' tool to extract and see the entity data records. " 
   ;; "Then you can use the tool load_into_working_graph to put the entity data into an OLAP knowledge graph, which is similar to using a data warehouse for data transformations. " 
   "Given the input, you can query for information about matching target attributes and target templates to better understand specifications for the transformation. " 
   "For example, given a CSV file called 'sample.csv' that may contain column 'sample_attribute_1', you can see whether 'sample_attribute_1' matches an attribute in the GDC standard, which GDC template it's used in, and acceptable values for the GDC version of the attribute. "
   "You may retrieve the list of potential target templates in the GDC standard. Note that the inputs may not have a 1:1 match to the GDC templates, so not all GDC templates are output targets, only the relevant ones. "
-  "Once you have determined which GDC templates to output and how to translate the data sufficiently, use the 'write_csv' tool. " 
-  "You can adapt parts of the workflow as needed according to user needs and to get the best results, but in general seeing all csv file data first may be most optimal. "
-   ))
+  "Once you have determined which GDC templates to output and how to translate the data sufficiently, either submit the csv data directly or use the mapping/transform specification schema (below), whichever is better. The output must contain/specify all columns in the target template!\n"
+  (slurp "resources/map_spec.json")
+ ))
 
 (def openai-messages (atom [{:role "system" :content role}]))
 
@@ -219,18 +261,18 @@
 (def meta (atom {:system role}))
 
 (def OpenAIArachneAgent 
-  (chat/->OpenAIProvider "o3-mini" 
+  (chat/->OpenAIProvider "gpt-4o"
                    openai-messages
                    tools 
                    tool-time
                    meta))
 
-(def AnthropicArachneAgent 
-  (chat/->AnthropicProvider "claude-3-7-sonnet-latest" 
-                      anthropic-messages
-                      anthropic-tools 
-                      anthropic-tool-time
-                      meta))
+(def AnthropicArachneAgent
+  (chat/->AnthropicProvider "claude-3-5-sonnet-20241022" ;;"claude-3-7-sonnet-latest"  
+                            anthropic-messages
+                            anthropic-tools
+                            anthropic-tool-time
+                            meta))
 
 (defn -main [] 
   (setup)
