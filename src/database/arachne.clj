@@ -9,7 +9,8 @@
             [clojure.data.csv :as csv]
             [cheshire.core :as json]
             [csv2rdf.csvw :as csvw]
-            [database.arachne :as arachne])
+            [database.arachne :as arachne]
+            [com.brunobonacci.mulog :as mu])
   (:import [java.io File]
            [java.nio.file Files Path Paths]
            [java.nio.file.attribute FileAttribute]))
@@ -59,7 +60,7 @@
            (filter #(.endsWith (.getName %) ".ttl"))
            (map #(.getAbsolutePath %)))
       (do
-        (println "Resources directory not found or not a directory")
+        (mu/log ::arachne :info "Resources directory not found or not a directory")
         []))))
 
 (defn load-all-turtle-files
@@ -67,11 +68,11 @@
   []
   (let [ttl (get-all-turtle-files)]
     (if (empty? ttl)
-      (println "No .ttl files found!")
+      (mu/log ::arachne :info "No .ttl files found!")
       (do
-        (println (str "Loading " (count ttl) " resource files into graph..."))
+        (mu/log ::arachne :info (str "Loading " (count ttl) " resource files into graph..."))
         (doseq [file ttl]
-          (println (str "Loading " file))
+          (mu/log ::arachne :info (str "Loading " file))
           (load-file-into-graph file))))))
 
 (load-all-turtle-files)
@@ -80,7 +81,7 @@
   (count (iterator-seq (.find (.getRawGraph graph)))))
 
 ;; Check
-(println "Arachne knowledge graph created with" (count-triples @kg) "triples")
+(mu/log ::arachne :info "Arachne knowledge graph created with" (count-triples @kg) "triples")
 
 (defn get-prop-mapping
   [p]
@@ -200,7 +201,7 @@
       (-> (csv/read-csv reader)
           first)
       (catch Exception e
-        (println (str "Error reading CSV headers from " csv-path ": " (.getMessage e)))
+        (mu/log ::arachne :error (str "Error reading CSV headers from " csv-path ": " (.getMessage e)))
         nil))))
 
 (defn generate-csvw-metadata

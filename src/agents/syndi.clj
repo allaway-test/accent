@@ -9,9 +9,6 @@
             [clojure.string :as str]
             [com.brunobonacci.mulog :as mu]))
 
-(mu/start-publisher! {:type :simple-file
-                      :filename "/tmp/mulog/events.edn"})
-
 ;;(add-watch u :syn-client-watcher
 ;;           (fn [_ _ old-state new-state]
 ;;             (when (not= (:sat old-state) (:sat new-state))
