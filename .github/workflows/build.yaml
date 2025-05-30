@@ -10,21 +10,19 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: Setup Java
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
           
-      - name: Install Leiningen
+      - name: Install Clojure
         uses: DeLaGuardo/setup-clojure@13.0
-        with:
-          lein: latest
           
       - name: Build uberjar
-        run: lein uberjar
+        run: clj -T:build uber
         
       - name: Create Release
         id: create_release
@@ -35,12 +33,12 @@ jobs:
           tag_name: ${{ github.ref }}
           release_name: ${{ github.ref }}
           draft: false
-          prerelease: ${{ contains(github.ref, 'rc') }}
+          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') || contains(github.ref, 'dev') || contains(github.ref, 'test')  || contains(github.ref, 'experimental') }}
       
       - name: Get artifact path
         id: get_artifact
         run: |
-          echo "artifact_path=$(ls ./target/uberjar/accent-*-standalone.jar)" >> $GITHUB_OUTPUT
+          echo "artifact_path=$(ls ./target/accent.jar)" >> $GITHUB_OUTPUT
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
