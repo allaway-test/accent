@@ -235,11 +235,11 @@
       ((:handler tool) args)
       (catch Exception e
         {:tool (name tool-name)
-         :result (.getMessage e)
+         :text (.getMessage e)
          :type "text"
          :isError true}))
     {:tool (name tool-name)
-     :result "Tool not found"
+     :text "Tool not found"
      :type "text"
      :isError true}))
 
@@ -251,11 +251,11 @@
       ((:handler prompt) args)
       (catch Exception e
         {:prompt (name prompt-name)
-         :result (.getMessage e)
+         :text (.getMessage e)
          :type "text"
          :isError true}))
     {:prompt (name prompt-name)
-     :result "Prompt not found"
+     :text "Prompt not found"
      :type "text"
      :isError true}))
 
@@ -357,7 +357,7 @@
       (if (contains? tool-set tool-name)
         (execute-tool tool-name args)
         {:tool (name tool-name)
-         :result "Tool not available"
+         :text "Tool not available"
          :type "text"
          :isError true}))))
 
@@ -370,7 +370,7 @@
       (if (contains? tool-set tool-name)
         (execute-tool tool-name args)
         {:tool (name tool-name)
-         :result "Tool not available"
+         :text "Tool not available"
          :type "text"
          :isError true}))))
 
@@ -383,7 +383,7 @@
       (if (contains? prompt-set prompt-name)
         (execute-prompt prompt-name args)
         {:prompt (name prompt-name)
-         :result "Prompt not available"
+         :text "Prompt not available"
          :type "text"
          :error true}))))
 

@@ -214,7 +214,7 @@
           msg         {:tool_call_id (tool-call :id)
                        :role         "tool"
                        :name         tool-name
-                       :content      (result :result)}]
+                       :content      (result :text)}]
       (if clients
         (do
           (doseq [client @clients]
@@ -326,7 +326,7 @@
                          msg    {:role    "user"
                                  :content [{:type        "tool_result"
                                             :tool_use_id (tool-use :id)
-                                            :content     (result :result)}]}]
+                                            :content     (result :text)}]}]
                      (parse-response this (prompt-ai this msg))))
   
   MessageOps

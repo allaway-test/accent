@@ -16,7 +16,7 @@
   (let [schema (get-table-sample @syn table_id)
         doc (get-entity-wiki @syn table_id)
         text (str {:schema schema :doc doc})] 
-    {:result text
+    {:text text
      :type "text"
      :isError false}))
 
@@ -38,7 +38,7 @@
 
 (defn query-table-handler
   [{:keys [table_id query]}] 
-  {:result (str (query-table @syn table_id query))
+  {:text (str (query-table @syn table_id query))
    :type "text"
    :isError false})
 
@@ -61,7 +61,7 @@
 
 (defn get-wiki-handler
   [{:keys [id]}]
-  {:result (get-entity-wiki @syn id)
+  {:text (get-entity-wiki @syn id)
    :type   "text"
    :isError false})
 
@@ -87,10 +87,10 @@
         response (set-annotations @syn id ann-map)]
     (println "Metadata stored on/within" collection_id entity_id)
     (if (= 200 (:status response))
-      {:result "Committed successfully."
+      {:text "Committed successfully."
        :type "text"
        :isError false}
-      {:result (str "Failed to store, server returned status " (:status response))
+      {:text (str "Failed to store, server returned status " (:status response))
        :type "text"
        :isError true})))
 
@@ -119,7 +119,7 @@
 
 (defn get-user-name-handler
   [{:keys [userid]}]
-  {:result (str (get-user-name @syn (str userid)))
+  {:text (str (get-user-name @syn (str userid)))
    :type   "text"
    :isError false})
 
@@ -143,9 +143,9 @@
   (let [result (arachne/get-same-property attribute_uri)]
     ;; (mu/log ::find-matching-attribute :param attribute_uri)
     (if (or (nil? result) (empty? result))
-      {:result "No known matches were found."
+      {:text "No known matches were found."
        :type "text"}
-      {:result (str result)
+      {:text (str result)
        :type "text"})))
 
 (registry/deftool 
@@ -168,9 +168,9 @@
   (let [result (arachne/describe-uri attribute_uri)]
     ;; (mu/log ::get-attribute-meta  :param attribute_uri)
     (if (or (nil? result) (empty? result))
-      {:result "No result."
+      {:text "No result."
        :type "text"}
-      {:result (str result)
+      {:text (str result)
        :type "text"})))
 
 (registry/deftool
@@ -192,9 +192,9 @@
   [{:keys [template_uri]}]
   (let [result (arachne/describe-template-columns template_uri)]
     (if (or (nil? result) (empty? result))
-      {:result "No result."
+      {:text "No result."
        :type "text"}
-      {:result (str result)
+      {:text (str result)
        :type "text"})))
 
 (registry/deftool
@@ -217,9 +217,9 @@
   (let [result (arachne/list-templates standard_uri)]
     ;; (mu/log ::list-standard-templates  :param standard_uri)
     (if (or (nil? result) (empty? result))
-      {:result "No result."
+      {:text "No result."
        :type "text"}
-      {:result (str result)
+      {:text (str result)
        :type "text"})))
 
 (registry/deftool
@@ -246,10 +246,10 @@
         size-in-kb (/ (.length file-obj) 1024.0)]
     ;; (mu/log ::read-file  :filename file)
     (if (< size-in-kb 10)
-      {:result (slurp file)
+      {:text (slurp file)
        :type "text"
        :isError false}
-      {:result "File is too large."
+      {:text "File is too large."
        :type "text"
        :isError true})))
 
@@ -270,7 +270,7 @@
   [{:keys [file]}]
   (let [result (cu/summarize-manifest file)]
     ;; (mu/log ::summarize-file  :filename file)
-    {:result (str result)
+    {:text (str result)
      :type :success}))
 
 (registry/deftool
@@ -293,7 +293,7 @@
   [{:keys [data filename]}]
   (let [file (spit filename data)]
     ;; (mu/log ::submit-data :filename filename :message data)
-    {:result "Data stored."
+    {:text "Data stored."
      :type "text"}))
 
 (registry/deftool
