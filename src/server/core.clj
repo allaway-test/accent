@@ -3,6 +3,7 @@
   (:require [accent.state :refer [setup u]]
             [accent.chat :refer [stream-response save-messages]]
             [agents.syndi :refer [Syndi]]
+            [curate.synapse :refer [new-syn]] ;; Syndi needs Synapse client
             [org.httpkit.server :as httpkit]
             [compojure.core :refer [defroutes GET]]
             [compojure.route :as route]
@@ -70,6 +71,7 @@
 
 (defn start-server []
   (setup :ui :web)
+  (new-syn (@u :sat))
   (swap! u assoc :stream true)
   (let [server (httpkit/run-server app-routes {:port 3000})]
     (browse-url "http://localhost:3000")
