@@ -22,7 +22,7 @@ jobs:
         uses: DeLaGuardo/setup-clojure@13.0
           
       - name: Build uberjar
-        run: clj -T:build uber
+        run: clojure -T:build uber
         
       - name: Create Release
         id: create_release
