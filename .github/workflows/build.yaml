@@ -25,7 +25,7 @@ jobs:
           bb: 0.7.8
           
       - name: Build uberjar
-        run: clj -T:build uber
+        run: clojure -T:build uber
         
       - name: Create Release
         id: create_release
