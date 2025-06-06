@@ -85,7 +85,6 @@
   (let [ann-map (json/parse-string data)
         id (if entity_id entity_id (create-folder @syn product_name entity_id))
         response (set-annotations @syn id ann-map)]
-    (println "Metadata stored on/within" collection_id entity_id)
     (if (= 200 (:status response))
       {:text "Committed successfully."
        :type "text"
@@ -245,11 +244,11 @@
   (let [file-obj (java.io.File. file)
         size-in-kb (/ (.length file-obj) 1024.0)]
     ;; (mu/log ::read-file  :filename file)
-    (if (< size-in-kb 10)
+    (if (< size-in-kb 100)
       {:text (slurp file)
        :type "text"
        :isError false}
-      {:text "File is too large."
+      {:text "File size exceeds the allowed read limit."
        :type "text"
        :isError true})))
 
@@ -258,7 +257,7 @@
   "Read text content from local file or URL."
   {:type "object"
    :properties {"file" {:type "string"
-                       :description "Local file path or URL"}}
+                        :description "Local file path or URL"}}
    :required ["file"]}
   :category #{:io}
   :permissions #{:read}
@@ -266,15 +265,16 @@
 
 ;; ----------------------------------------------------------------------------
 
-(defn summarize-file-handler
+(defn summarize-csv-handler
   [{:keys [file]}]
   (let [result (cu/summarize-manifest file)]
     ;; (mu/log ::summarize-file  :filename file)
     {:text (str result)
-     :type :success}))
+     :type "text"
+     :isError false}))
 
 (registry/deftool
-  :summarize-file
+  :summarize-csv
   "Get summary of data within a csv file, such as columns present, unique values and value ranges. This can handle larger files."
   {:type "object"
    :properties
@@ -284,7 +284,7 @@
    :required ["file"]}
   :category #{:io}
   :permissions #{:read}
-  :handler summarize-file-handler)
+  :handler summarize-csv-handler)
 
 ;; ----------------------------------------------------------------------------
 
