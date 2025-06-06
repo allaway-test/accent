@@ -16,9 +16,8 @@
   (let [schema (get-table-sample @syn table_id)
         doc (get-entity-wiki @syn table_id)
         text (str {:schema schema :doc doc})] 
-    {:text text
-     :type "text"
-     :isError false}))
+    {:type "text"
+     :text text}))
 
 (registry/deftool :get-table-context
   "Use this to confirm the availability of a Synapse table, retrieve its queryable fields (schema), and get any docs that exists for the table. 
@@ -38,9 +37,8 @@
 
 (defn query-table-handler
   [{:keys [table_id query]}] 
-  {:text (str (query-table @syn table_id query))
-   :type "text"
-   :isError false})
+  {:type "text"
+   :text (str (query-table @syn table_id query))})
 
 (registry/deftool :query-table
   "Use to query table with SQL to help answer a user question; query should include only queryable fields; only a subset of valid SQL is allowed -- do not include update clauses."
@@ -61,9 +59,8 @@
 
 (defn get-wiki-handler
   [{:keys [id]}]
-  {:text (get-entity-wiki @syn id)
-   :type   "text"
-   :isError false})
+  {:type "text"
+   :text (get-entity-wiki @syn id)})
 
 (registry/deftool :get-wiki
   "Get the Wiki page, if it exists, for a Synapse entity."
@@ -86,12 +83,10 @@
         id (if entity_id entity_id (create-folder @syn product_name entity_id))
         response (set-annotations @syn id ann-map)]
     (if (= 200 (:status response))
-      {:text "Committed successfully."
-       :type "text"
-       :isError false}
-      {:text (str "Failed to store, server returned status " (:status response))
-       :type "text"
-       :isError true})))
+      {:type "text"
+       :text "Committed successfully."}
+      {:type "text"
+       :text (str "Failed to store, server returned status " (:status response))})))
 
 (registry/deftool :commit
   "Add new or updated metadata for an entity (data product) into the Synapse platform."
@@ -118,9 +113,8 @@
 
 (defn get-user-name-handler
   [{:keys [userid]}]
-  {:text (str (get-user-name @syn (str userid)))
-   :type   "text"
-   :isError false})
+  {:type "text"
+   :text (str (get-user-name @syn (str userid)))})
 
 (registry/deftool :get-user-name
   "Get a user name given a user id (results depend on how the user filled out this field, and in some cases may contain first name only or may be blank)."
@@ -142,10 +136,10 @@
   (let [result (arachne/get-same-property attribute_uri)]
     ;; (mu/log ::find-matching-attribute :param attribute_uri)
     (if (or (nil? result) (empty? result))
-      {:text "No known matches were found."
-       :type "text"}
-      {:text (str result)
-       :type "text"})))
+      {:type "text"
+       :text "No known matches were found."}
+      {:type "text"
+       :text (str result)})))
 
 (registry/deftool 
   :find-matching-attribute
@@ -167,10 +161,10 @@
   (let [result (arachne/describe-uri attribute_uri)]
     ;; (mu/log ::get-attribute-meta  :param attribute_uri)
     (if (or (nil? result) (empty? result))
-      {:text "No result."
-       :type "text"}
-      {:text (str result)
-       :type "text"})))
+      {:type "text"
+       :text "No result."}
+      {:type "text"
+       :text (str result)})))
 
 (registry/deftool
   :get-attribute-meta
@@ -191,10 +185,10 @@
   [{:keys [template_uri]}]
   (let [result (arachne/describe-template-columns template_uri)]
     (if (or (nil? result) (empty? result))
-      {:text "No result."
-       :type "text"}
-      {:text (str result)
-       :type "text"})))
+      {:type "text"
+       :text "No result."}
+      {:type "text"
+       :text (str result)})))
 
 (registry/deftool
   :get-template-meta
@@ -216,10 +210,10 @@
   (let [result (arachne/list-templates standard_uri)]
     ;; (mu/log ::list-standard-templates  :param standard_uri)
     (if (or (nil? result) (empty? result))
-      {:text "No result."
-       :type "text"}
-      {:text (str result)
-       :type "text"})))
+      {:type "text"
+       :text "No result."}
+      {:type "text"
+       :text (str result)})))
 
 (registry/deftool
   :list-standard-templates
@@ -245,12 +239,10 @@
         size-in-kb (/ (.length file-obj) 1024.0)]
     ;; (mu/log ::read-file  :filename file)
     (if (< size-in-kb 100)
-      {:text (slurp file)
-       :type "text"
-       :isError false}
-      {:text "File size exceeds the allowed read limit."
-       :type "text"
-       :isError true})))
+      {:type "text"
+       :text (slurp file)}
+      {:type "text"
+       :text "File size exceeds the allowed read limit."})))
 
 (registry/deftool
   :read-file
@@ -269,9 +261,8 @@
   [{:keys [file]}]
   (let [result (cu/summarize-manifest file)]
     ;; (mu/log ::summarize-file  :filename file)
-    {:text (str result)
-     :type "text"
-     :isError false}))
+    {:type "text"
+     :text (str result)}))
 
 (registry/deftool
   :summarize-csv
@@ -293,8 +284,8 @@
   [{:keys [data filename]}]
   (let [file (spit filename data)]
     ;; (mu/log ::submit-data :filename filename :message data)
-    {:text "Data stored."
-     :type "text"}))
+    {:type "text"
+     :text "Data stored."}))
 
 (registry/deftool
   :submit-data
