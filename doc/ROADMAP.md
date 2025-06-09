@@ -59,7 +59,5 @@ So even though we added visualization to make *accent* more usable in an AI-enab
 
 - **v0.7** - Enable interopability via MCP; and more composable agent framework where agents can share tools. (Focus on interopability and composability.)
     - Implement global tools registry.
-    - Add MCP server capability to serve tools.
-
-- **v0.8** - Enable reusable curation workflows via MCP prompts. 
-    - Agentic curation of external sources into structured format (e.g. Synapse metadata compliant with a data model).
+    - Add MCP server capability to provide tools via preferred external clients.
+    - (v0.7.2+) Enable reusable curation workflows via MCP prompts, such as curation of Synapse datasets with an org-specific data model.
