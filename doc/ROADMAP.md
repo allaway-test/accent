@@ -57,7 +57,7 @@ When the roadmap was first created, Claude Desktop client and especially Model C
 Some of these clients do very well at rendering charts and other visualizations so we don't need *accent* for this. 
 So even though we added visualization to make *accent* more usable in an AI-enabled analysis workflow, today it wouldn't be the best client for visualizing things; its strengths should be in providing the data more easily (from Synapse or local files) or specialized tools that help with the analysis (e.g. validation and harmonization of clinical data when combining data in the analysis) -- and this can be done via MCP. 
 
-- **v0.7** - Enable interopability via MCP; and more composable agent framework where agents can share tools. (Focus on interopability and composability.)
-    - Implement global tools registry.
+- **v0.7** - Enable interopability via MCP and more composable framework with global tools registry (these two go hand-in-hand). (Focus on interopability and composability.)
+    - Implement global tools registry. Update existing agents to use more composable approach.
     - Add MCP server capability to provide tools via preferred external clients.
     - (v0.7.2+) Enable reusable curation workflows via MCP prompts, such as curation of Synapse datasets with an org-specific data model.
