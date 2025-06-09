@@ -1,8 +1,8 @@
-## Model Context Protocol Notes
+## Model Context Protocol Compatibility
 
 ### As an MCP server
 
-*accent* can run in [Model Context Protocol](https://github.com/model-context-protocol/model-context-protocol) server mode, though currently only as a local server with `stdio` transport, due to limitaions in the Clojure framework. 
+*accent* can run in [Model Context Protocol](https://github.com/model-context-protocol/model-context-protocol) server mode, though currently only as a local server with `stdio` transport, due to limitations in the Clojure framework. 
 However, it's likely that our Clojure SDK will later add other transports that enable running as a remote MCP server.
 
 #### What client to use?
@@ -52,10 +52,12 @@ Note also that only files with `.txt`, `.md`, `.pdf`, `.docx`, and `.html` exten
 
 -->
 
-### As an MCP client
+### Is *accent* also an MCP client?
 
-*accent*'s basic built-in client framework is unfortunately **not MCP-compatible**, and is also less robust, feature-rich, and safe compared to many of the full-fledged clients listed above. 
-*accent*'s built-in client is meant more for technical internal users and research purposes. This [previously presented analogy](https://docs.google.com/presentation/d/1mBfajkaEankhIVwp4XBeAIoL-8LOqERKniYZZXdcvzo/edit?usp=sharing) visualizes where the *accent* client framework currently stands. 
+*accent*'s basic AI client framework allows you to work with several AI provider services but **currently does not implement MCP**. 
+That means you can only use *accent*'s tools when using *accent* as a client. 
+*accent*'s framework is also less robust, feature-rich, and safe compared to many of the full-fledged clients listed above, meant more for technical internal users and research purposes. 
+This [previously presented analogy](https://docs.google.com/presentation/d/1mBfajkaEankhIVwp4XBeAIoL-8LOqERKniYZZXdcvzo/edit?usp=sharing) visualizes where the *accent* client framework currently stands. 
 
 - **Guardrails/safety/observability**: Clients listed above do generally implement stricter tool usage guardrails. For example, in Claude for Desktop or Cursor, users can toggle tools available and must approve each AI tool usage. 
 In *accent*, there is no similar UI/config to similarly constrain tool access (yet), and while a minimal safety/observability feature exists for seeing each tool call made, you may not have the chance to intercept it first. 
