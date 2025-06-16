@@ -101,7 +101,8 @@ Review the `example_config.edn` file; rename it to `config.edn` and modify as ne
 > Only OpenAI works with *both* web app UI and developer console for now. Anthropic and OpenRouter only work with the developer console.
 
 The app integrates three providers: OpenAI, Anthropic, and OpenRouter, and an initial model provider must be specified. 
-In the *same chat*, it is possible to switch between models from the *same provider* but not between different providers, e.g. switching from ChatGPT-3.5 to ChatGPT-4o, but not from ChatGTP-3.5 to Claude Sonnet-3.5. 
+In the *same chat*, it is possible to switch between models from the *same provider* but not between different providers, e.g. switching from ChatGPT-3.5 to ChatGPT-4o, but not from ChatGPT-3.5 to Claude Sonnet-3.5. 
+Note: OpenRouter is an exception as it provides access to models from multiple underlying providers (OpenAI, Anthropic, Google, Meta) through a unified interface, so switching between different model providers is possible when using OpenRouter.
 However, existence of the switching feature does not suggest that the user should be manually and frequently switching between models. 
 For all providers, the default is to use a model on the smarter end, though later on it may be possible to specify an initial model in the config. 
 Tip for usage: Trying to reduce costs by switching to a cheaper model for some tasks is likely premature optimization at this early stage. 
@@ -114,7 +115,7 @@ Tip for usage: Trying to reduce costs by switching to a cheaper model for some t
   - The default model is Claude Sonnet 3.5.
 - OpenRouter
   - To use, must have `OPENROUTER_API_KEY` in env or set in config.
-  - The default model is GPT-4o (via OpenRouter).
+  - The default model is Gemini 2.0 Flash Experimental (via OpenRouter).
   - Provides access to multiple model providers through a single API.
 
 

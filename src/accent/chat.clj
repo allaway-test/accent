@@ -493,19 +493,19 @@
 
 (def openrouter-models
   "https://openrouter.ai/docs#models"
-  {:default "openai/gpt-4o"
+  {:default "google/gemini-2.0-flash-exp"
    :models {"openai/gpt-4o" {:label "GPT-4o (via OpenRouter)"
                              :context 128000}
             "openai/gpt-4o-mini" {:label "GPT-4o Mini (via OpenRouter)"
                                   :context 128000}
-            "anthropic/claude-3.7-sonnet" {:label "Claude 3.7 Sonnet (via OpenRouter)"
+            "anthropic/claude-3-5-sonnet" {:label "Claude 3.5 Sonnet (via OpenRouter)"
                                            :context 200000}
             "anthropic/claude-3-haiku" {:label "Claude 3 Haiku (via OpenRouter)"
                                         :context 200000}
-            "google/gemini-pro" {:label "Gemini Pro (via OpenRouter)"
-                                 :context 2097152}
-            "meta-llama/llama-3.2-90b-instruct" {:label "Llama 3.2 90B (via OpenRouter)"
-                                                  :context 131072}}})
+            "google/gemini-2.0-flash-exp" {:label "Gemini 2.0 Flash Experimental (via OpenRouter)"
+                                           :context 2097152}
+            "meta-llama/llama-3.2-90b-vision-instruct" {:label "Llama 3.2 90B Vision (via OpenRouter)"
+                                                         :context 131072}}})
 
 ;; =============================================================================
 ;; Agent Configuration w/ Tools

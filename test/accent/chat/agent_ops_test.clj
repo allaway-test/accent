@@ -15,19 +15,19 @@
 
 (deftest openrouter-agent-ops-test
   (testing "OpenRouter provider get-model returns current model"
-    (let [provider (->OpenRouterProvider "openai/gpt-4o" (atom []) nil tool-time (atom {}))]
-      (is (= "openai/gpt-4o" (get-model provider)))))
+    (let [provider (->OpenRouterProvider "google/gemini-2.0-flash-exp" (atom []) nil tool-time (atom {}))]
+      (is (= "google/gemini-2.0-flash-exp" (get-model provider)))))
   
   (testing "OpenRouter provider switch-model changes the model"
-    (let [provider (->OpenRouterProvider "openai/gpt-4o" (atom []) nil tool-time (atom {}))]
-      (switch-model provider "anthropic/claude-3.7-sonnet")
-      (is (= "anthropic/claude-3.7-sonnet" (get-model provider))))))
+    (let [provider (->OpenRouterProvider "google/gemini-2.0-flash-exp" (atom []) nil tool-time (atom {}))]
+      (switch-model provider "anthropic/claude-3-5-sonnet")
+      (is (= "anthropic/claude-3-5-sonnet" (get-model provider))))))
 
 (deftest create-agent-test
   (testing "create-agent with OpenRouter provider"
     (let [agent-config {:provider :openrouter
-                        :model "openai/gpt-4o"
+                        :model "google/gemini-2.0-flash-exp"
                         :role "You are a helpful assistant"
                         :tools []}
           agent (create-agent agent-config)]
-      (is (= "openai/gpt-4o" (get-model agent))))))
+      (is (= "google/gemini-2.0-flash-exp" (get-model agent))))))
