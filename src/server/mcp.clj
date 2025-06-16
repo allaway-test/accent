@@ -17,7 +17,7 @@
 
 (def accent-server-spec
   {:name "accent: AI-Assisted Curation/Content ENhancement Tools",
-   :version "0.7.0",
+   :version "1.0.0",
    :tools all-tools})
 
 (defn -main

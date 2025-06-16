@@ -3,7 +3,7 @@
             [clojure.java.shell :as shell]))
 
 (def lib 'accent)
-(def version "")
+(def version "1.0.0")
 (def class-dir "target/classes")
 (def uber-file "target/accent.jar")
 (def prebuilt-graph-file "resources/rdf/prebuilt-graph.ttl")
