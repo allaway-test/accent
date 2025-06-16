@@ -115,7 +115,7 @@ Tip for usage: Trying to reduce costs by switching to a cheaper model for some t
   - The default model is Claude Sonnet 3.5.
 - OpenRouter
   - To use, must have `OPENROUTER_API_KEY` in env or set in config.
-  - The default model is GPT-4o Mini (via OpenRouter).
+  - The default model is google/gemini-2.5-pro-preview (via OpenRouter).
   - Provides access to multiple model providers through a single API.
 
 
