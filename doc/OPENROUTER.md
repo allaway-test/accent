@@ -22,9 +22,9 @@ export OPENROUTER_API_KEY="sk-or-your-api-key-here"
 ```clojure
 (require '[accent.chat :refer [create-agent ask]])
 
-;; Create an agent using OpenRouter with Gemini 2.0 Flash Experimental
+;; Create an agent using OpenRouter with GPT-4o Mini
 (def agent (create-agent {:provider :openrouter
-                          :model "google/gemini-2.0-flash-exp"
+                          :model "openai/gpt-4o-mini"
                           :role "You are a helpful assistant"
                           :tools []}))
 
@@ -33,11 +33,11 @@ export OPENROUTER_API_KEY="sk-or-your-api-key-here"
 
 ;; Switch to Claude via OpenRouter
 (require '[accent.chat :refer [switch-model]])
-(switch-model agent "anthropic/claude-3-5-sonnet")
+(switch-model agent "anthropic/claude-3-5-sonnet-20241022")
 (ask agent "Explain transformers in deep learning")
 
 ;; Switch to Llama via OpenRouter
-(switch-model agent "meta-llama/llama-3.2-90b-vision-instruct")
+(switch-model agent "meta-llama/llama-3.1-8b-instruct")
 (ask agent "What are the benefits of open source models?")
 ```
 
@@ -48,9 +48,9 @@ OpenRouter provides access to models from multiple providers. For a complete and
 Popular models include:
 
 - **OpenAI**: `openai/gpt-4o`, `openai/gpt-4o-mini`
-- **Anthropic**: `anthropic/claude-3-5-sonnet`, `anthropic/claude-3-haiku`
-- **Google**: `google/gemini-2.0-flash-exp`
-- **Meta**: `meta-llama/llama-3.2-90b-vision-instruct`
+- **Anthropic**: `anthropic/claude-3-5-sonnet-20241022`, `anthropic/claude-3-haiku-20240307`
+- **Google**: `google/gemini-pro`
+- **Meta**: `meta-llama/llama-3.1-8b-instruct`
 
 ## Benefits of OpenRouter
 
