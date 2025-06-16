@@ -1,6 +1,6 @@
 {:tools false
  :db-env :prod
- :init-model-provider "OpenAI" ;; or "Anthropic"
+ :init-model-provider "OpenAI" ;; or "Anthropic" or "OpenRouter"
 
 ;; System environment variables will be checked first,
 ;; hence credentials are OPTIONALLY set in this config;
@@ -10,5 +10,6 @@
 ;; :synapse-auth-token "i<3fa1rd@ta" ;; or set SYNAPSE_AUTH_TOKEN
 ;; :openai-api-key "sk-xxx" ;; or set OPENAI_API_KEY
 ;; :anthropic-api-key "hi-claude" ;; or set ANTHROPIC_API_KEY
+;; :openrouter-api-key "sk-or-xxx" ;; or set OPENROUTER_API_KEY
 
 }

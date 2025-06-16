@@ -12,6 +12,7 @@
    {:sat nil
     :oak nil
     :aak nil
+    :orak nil
     :dcc nil
     :asset-view nil
     :profile nil
@@ -21,9 +22,12 @@
     :ui :terminal}))
 
 (defn set-api-key!
-  "Set API keys for specific model providers (OpenAI or Anthropic)." 
+  "Set API keys for specific model providers (OpenAI, Anthropic, or OpenRouter)." 
   [provider key] 
-  (let [key-keyword (if (= provider "OpenAI") :oak :aak)]
+  (let [key-keyword (case provider
+                      "OpenAI" :oak
+                      "Anthropic" :aak
+                      "OpenRouter" :orak)]
     (swap! u assoc :model-provider provider)
     (swap! u assoc key-keyword key) 
     true))
@@ -49,21 +53,27 @@
 
 (defn set-model-provider! 
   "Checks for model provider based on available API keys in env and config.
-  Takes a config map containing :openai-api-key, :anthropic-api-key, :init-model-provider.
+  Takes a config map containing :openai-api-key, :anthropic-api-key, :openrouter-api-key, :init-model-provider.
   Sets the model provider based on :model-provider if present."
-  [{:keys [openai-api-key anthropic-api-key init-model-provider] :as config}]
-  (when openai-api-key
+  [{:keys [openai-api-key anthropic-api-key openrouter-api-key init-model-provider] :as config}]
+  ;; Set API keys from config or environment variables
+  (when (or openai-api-key (System/getenv "OPENAI_API_KEY"))
     (do 
-      (swap! u assoc :oak openai-api-key)
-      (mu/log ::configuration :info "OPENAI_API_KEY set from config.")))
-  (when anthropic-api-key
+      (swap! u assoc :oak (or openai-api-key (System/getenv "OPENAI_API_KEY")))
+      (mu/log ::configuration :info "OPENAI_API_KEY set from" (if openai-api-key "config" "environment"))))
+  (when (or anthropic-api-key (System/getenv "ANTHROPIC_API_KEY"))
     (do
-      (swap! u assoc :aak anthropic-api-key)
-      (mu/log ::configuration :info "ANTHROPIC_API_KEY set from config.")))
+      (swap! u assoc :aak (or anthropic-api-key (System/getenv "ANTHROPIC_API_KEY")))
+      (mu/log ::configuration :info "ANTHROPIC_API_KEY set from" (if anthropic-api-key "config" "environment"))))
+  (when (or openrouter-api-key (System/getenv "OPENROUTER_API_KEY"))
+    (do
+      (swap! u assoc :orak (or openrouter-api-key (System/getenv "OPENROUTER_API_KEY")))
+      (mu/log ::configuration :info "OPENROUTER_API_KEY set from" (if openrouter-api-key "config" "environment"))))
   (let [has-oak (@u :oak)
-        has-aak (@u :aak)] 
+        has-aak (@u :aak)
+        has-orak (@u :orak)] 
     (cond 
-      (and has-oak has-aak init-model-provider) 
+      (and (or has-oak has-aak has-orak) init-model-provider) 
       (do 
         (swap! u assoc :model-provider init-model-provider) 
         (mu/log ::configuration :info "Multiple AI providers available. Preferred provider set to" (@u :model-provider)))
@@ -77,6 +87,11 @@
       (do 
         (swap! u assoc :model-provider :anthropic) 
         (mu/log ::configuration :info "Preferred provider set to Anthropic"))
+      
+      has-orak
+      (do 
+        (swap! u assoc :model-provider :openrouter) 
+        (mu/log ::configuration :info "Preferred provider set to OpenRouter"))
       
       :else 
       (do 

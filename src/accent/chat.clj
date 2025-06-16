@@ -93,6 +93,20 @@
       {:isError   true
        :message (str (.getMessage e))})))
 
+(defn request-openrouter-completions
+  [body & [m]]
+  (try
+    (-> (client/post "https://openrouter.ai/api/v1/chat/completions"
+                     {:headers {"Content-Type"  "application/json"
+                                "Authorization" (str "Bearer " (@u :orak))}
+                      :body    (json/generate-string body)
+                      :as      (or (:as m) (if (@u :stream) :stream :string))
+                      :connect-timeout (or (:connect-timeout m) 10000)
+                      :timeout (or (:timeout m) 25000)}))
+    (catch Exception e 
+      {:isError   true
+       :message (str (.getMessage e))})))
+
 (def oops
   "Various responses to communicate that the chat is being terminated."
   ["we're over-limit, operations pause suddenly"
@@ -343,6 +357,116 @@
   (show-tools [this] tools)
   (get-context [this] @context))
 
+;;=====================================================
+;; OpenRouter Provider Def
+;;=====================================================
+
+(deftype OpenRouterProvider [^:volatile-mutable model 
+                             messages 
+                             tools 
+                             tool-time 
+                             context]
+  AIProviderOps
+  (parse-response [this resp] (parse-response this resp nil))
+  (parse-response [this resp clients]
+    (if (:isError resp)
+      (do
+        (println "Error occurred:" (:message resp))
+        {:role    "system"
+         :content (str "An error occurred: " (:message resp))})
+      (let [resp          (json/parse-string (:body resp) true)
+            msg           (get-in resp [:choices 0 :message])
+            tool-calls    (msg :tool_calls)
+            finish-reason (check-openai-finish-reason resp)]
+        (swap! messages conj msg)
+        (mu/log ::usage :data (get resp :usage))
+        (case finish-reason
+          "length"        (as-last-message messages (peek @messages) resp)
+          "tool_calls"    (add-tool-result this tool-calls clients)
+          "content_filter" (peek @messages)
+          "stop"          (peek @messages)))))
+  (prompt-ai [this content] (prompt-ai this content nil))
+  (prompt-ai [this content tool-choice]
+    (let [message (if (string? content)
+                    (as-user-message content)
+                    content)]
+      (swap! messages conj message)
+      (let [tools (if (= "o3-mini") {:tools tools} {:tools tools :parallel_tool_calls false})
+            response (->
+                      (cond->
+                       {:model model
+                        :messages @messages
+                        :stream (@u :stream)}
+                       tools (merge tools)
+                       tool-choice (assoc :tool_choice {:type "function" :function {:name tool-choice}}))
+                      (request-openrouter-completions))]
+        (if (:isError response)
+          {:isError true
+           :message (:message response)}
+          response))))
+  (add-tool-result [this tool-calls] (add-tool-result this tool-calls nil))
+  (add-tool-result [this tool-calls clients]
+    (let [tool-call   (first tool-calls)
+          tool-name   (get-in tool-call [:function :name])
+          result      (tool-time tool-call)
+          forced-tool (result :next-tool-call)
+          msg         {:tool_call_id (tool-call :id)
+                       :role         "tool"
+                       :name         tool-name
+                       :content      (result :text)}]
+      (if clients
+        (do
+          (doseq [client @clients]
+            (httpkit/send! client (json/generate-string {:type "observation-message" :content (str "(Assistant used " tool-name ")\n")}))
+            (when (result :data) (httpkit/send! client (json/generate-string {:type "viz-message" :data (result :data) :dataspec (result :dataspec)}))))
+
+          (stream-response this msg forced-tool clients))
+        (parse-response this (prompt-ai this msg forced-tool)))))
+
+  AIProviderStreamOps
+  (stream-response [this message tool-choice clients]
+    (let [response (prompt-ai this message tool-choice)
+          reader (io/reader (:body response))
+          collected-response (atom {:content "" :tool_calls []})]
+      (doseq [line (line-seq reader)]
+        (when (not (str/blank? line))
+          (when (str/starts-with? line "data: ")
+            (let [data (subs line 6)] ;; Remove "data: "
+              ;;(println data) ;; inspect stream chunks
+              (if (= data "[DONE]")
+                (do
+                  (when clients
+                    (doseq [client @clients] (httpkit/send! client (json/generate-string {:type "assistant-end-message" :content "\n"}))))
+                  (parse-response this (recreate-parseable-openai-response @collected-response) clients))
+                (let [parsed (json/parse-string data true)
+                      role (get-in parsed [:choices 0 :delta :role])
+                      content (get-in parsed [:choices 0 :delta :content])
+                      finish_reason (get-in parsed [:choices 0 :finish_reason])
+                      tool_calls (get-in parsed [:choices 0 :delta :tool_calls 0])]
+                  (when finish_reason
+                    (swap! collected-response assoc :finish_reason finish_reason))
+                  (when tool_calls
+                    (update-collected-tool-calls collected-response tool_calls))
+                  (when content
+                    (when clients (doseq [client @clients]
+                                    (httpkit/send! client
+                                                   (json/generate-string
+                                                    {:type (if role "assistant-start-message" "assistant-message")
+                                     :content content}))))
+                    (swap! collected-response update :content str content))))))))))
+  
+  MessageOps
+  (get-last-text [this] "TODO")
+  (save-messages [this] (save-state! @messages (str "accent-openrouter-messages-" (System/currentTimeMillis) ".json")))
+  (save-messages [this file] (save-state! @messages file))
+  (reset-messages [this] (reset! messages [{:role "system" :content (@context :system)}]))
+  
+  AgentOps
+  (get-model [this] model)
+  (switch-model [this new-model] (set! model new-model))
+  (show-tools [this] tools)
+  (get-context [this] @context))
+
 ;;==========================================
 ;; Models
 ;;==========================================
@@ -367,6 +491,22 @@
             "claude-3-sonnet-20240229" {:label "Claude 3 Sonnet"
                                         :context 200000}}})
 
+(def openrouter-models
+  "https://openrouter.ai/docs#models"
+  {:default "openai/gpt-4o"
+   :models {"openai/gpt-4o" {:label "GPT-4o (via OpenRouter)"
+                             :context 128000}
+            "openai/gpt-4o-mini" {:label "GPT-4o Mini (via OpenRouter)"
+                                  :context 128000}
+            "anthropic/claude-3.7-sonnet" {:label "Claude 3.7 Sonnet (via OpenRouter)"
+                                           :context 200000}
+            "anthropic/claude-3-haiku" {:label "Claude 3 Haiku (via OpenRouter)"
+                                        :context 200000}
+            "google/gemini-pro" {:label "Gemini Pro (via OpenRouter)"
+                                 :context 2097152}
+            "meta-llama/llama-3.2-90b-instruct" {:label "Llama 3.2 90B (via OpenRouter)"
+                                                  :context 131072}}})
+
 ;; =============================================================================
 ;; Agent Configuration w/ Tools
 ;; =============================================================================
@@ -388,7 +528,12 @@
                                      (atom [])
                                      (select-tools tool-set :anthropic)
                                      (create-anthropic-tool-dispatcher tool-set)
-                                     (if context context (atom {:system role}))))))
+                                     (if context context (atom {:system role})))
+      :openrouter (OpenRouterProvider. model
+                                       (atom [{:role "system" :content role}])
+                                       (select-tools tool-set :openai)
+                                       (create-tool-dispatcher tool-set)
+                                       (if context context (atom {})))))))
 
 ;; =============================================================================
 ;; Basic Chat Access to Agent
