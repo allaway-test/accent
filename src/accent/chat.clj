@@ -493,19 +493,23 @@
 
 (def openrouter-models
   "https://openrouter.ai/models"
-  {:default "openai/gpt-4o-mini"
-   :models {"openai/gpt-4o" {:label "GPT-4o (via OpenRouter)"
-                             :context 128000}
-            "openai/gpt-4o-mini" {:label "GPT-4o Mini (via OpenRouter)"
-                                  :context 128000}
-            "anthropic/claude-3-5-sonnet-20241022" {:label "Claude 3.5 Sonnet (via OpenRouter)"
-                                                    :context 200000}
-            "anthropic/claude-3-haiku-20240307" {:label "Claude 3 Haiku (via OpenRouter)"
-                                                 :context 200000}
-            "google/gemini-pro" {:label "Gemini Pro (via OpenRouter)"
-                                 :context 128000}
-            "meta-llama/llama-3.1-8b-instruct" {:label "Llama 3.1 8B Instruct (via OpenRouter)"
-                                                 :context 131072}}})
+  {:default "google/gemini-2.5-pro-preview"
+   :models {"openai/o3-pro" {:label "o3-pro (via OpenRouter)"
+                             :context 200000}
+            "openai/gpt-4.1-nano" {:label "GPT-4.1 Nano (via OpenRouter)"
+                                   :context 128000}
+            "google/gemini-2.5-flash-preview-05-20:thinking" {:label "Gemini 2.5 Flash Preview Thinking (via OpenRouter)"
+                                                              :context 1000000}
+            "google/gemini-2.0-flash-exp:free" {:label "Gemini 2.0 Flash Experimental Free (via OpenRouter)"
+                                                :context 1000000}
+            "google/gemma-3n-e4b-it:free" {:label "Gemma 3N E4B IT Free (via OpenRouter)"
+                                           :context 8192}
+            "deepseek/deepseek-r1-distill-qwen-7b" {:label "DeepSeek R1 Distill Qwen 7B (via OpenRouter)"
+                                                     :context 131072}
+            "deepseek/deepseek-r1-0528-qwen3-8b" {:label "DeepSeek R1 Qwen3 8B (via OpenRouter)"
+                                                   :context 131072}
+            "google/gemini-2.5-pro-preview" {:label "Gemini 2.5 Pro Preview (via OpenRouter)"
+                                             :context 2000000}}})
 
 ;; =============================================================================
 ;; Agent Configuration w/ Tools
